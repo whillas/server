@@ -31,6 +31,7 @@ import docker
 import os.path
 import multiprocessing
 import pathlib
+import platform
 import shutil
 import subprocess
 import sys
@@ -476,7 +477,27 @@ FROM ${BASE_IMAGE}
 
 ARG TRITON_VERSION
 ARG TRITON_CONTAINER_VERSION
+'''
+    # Install the windows- or linux-specific buildbase dependencies
+    if platform.system() == 'Windows':
+        df += '''
+WORKDIR /Git
+RUN powershell Invoke-WebRequest 'https://github.com/git-for-windows/git/releases/download/v2.29.2.windows.2/Git-2.29.2.2-64-bit.exe' -OutFile 'Git-2.29.2.2-64-bit.exe'
+RUN Git-2.29.2.2-64-bit.exe /VERYSILENT /NORESTART /NOCANCEL /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS
 
+WORKDIR /BuildTools
+ADD https://aka.ms/vs/16/release/vs_buildtools.exe vs_buildtools.exe
+RUN vs_buildtools.exe --quiet --wait --norestart --nocache --installPath C:\\BuildTools --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended || if "%ERRORLEVEL%"=="3010" exit 0
+
+WORKDIR /vcpkg
+RUN git clone --depth=1 --single-branch -b 2020.11-1 https://github.com/microsoft/vcpkg.git
+WORKDIR /vcpkg/vcpkg
+RUN bootstrap-vcpkg.bat
+
+RUN vcpkg.exe install rapidjson:x64-windows re2:x64-windows boost-interprocess:x64-windows
+'''
+    else:
+        df += '''
 # libcurl4-openSSL-dev is needed for GCS
 # python3-dev is needed by Torchvision
 # python3-pip is needed by python backend
@@ -618,11 +639,22 @@ RUN cd /opt/tritonserver/backends/onnxruntime && \
         patchelf --set-rpath '$ORIGIN' $i; \
     done
 '''
-    df += '''
+
+    # Copy in the triton source. We remove existing contents first incase the
+    # FROM container has something there already.
+    if platform.system() == 'Windows':
+        df += '''
+WORKDIR /workspace
+RUN rmdir /S/Q * || exit 0
+COPY . .
+'''
+    else:
+        df += '''
 WORKDIR /workspace
 RUN rm -fr *
 COPY . .
 '''
+
     if 'onnxruntime' in backends:
         df += '''
 # Copy ONNX custom op library and model (Needed for testing)
@@ -787,6 +819,8 @@ def container_build(backends, images):
     # build.
     if 'base' in images:
         base_image = images['base']
+    elif platform.system() == 'Windows':
+        base_image = 'mcr.microsoft.com/windows:1809'
     else:
         base_image = 'nvcr.io/nvidia/tritonserver:{}-py3-min'.format(
             FLAGS.upstream_container_version)
