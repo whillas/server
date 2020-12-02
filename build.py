@@ -954,18 +954,28 @@ def container_build(backends, images):
                 runargs[idx] = '--container-prebuild-command="{}"'.format(
                     runargs[idx][len('--container-prebuild-command='):])
 
+        if platform.system() == 'Windows':
+            volumes={
+                '\\.\pipe\docker_engine': {
+                    'bind': '\\.\pipe\docker_engine',
+                    'mode': 'rw'
+                }
+            }
+        else:
+            volumes={
+                '/var/run/docker.sock': {
+                    'bind': '/var/run/docker.sock',
+                    'mode': 'rw'
+                }
+            }
+
         log_verbose('run {}'.format(runargs))
         container = client.containers.run(
             'tritonserver_buildbase',
             './build.py {}'.format(' '.join(runargs)),
             detach=True,
             name='tritonserver_builder',
-            volumes={
-                '/var/run/docker.sock': {
-                    'bind': '/var/run/docker.sock',
-                    'mode': 'rw'
-                }
-            },
+            volumes=volumes,
             working_dir='/workspace')
         if FLAGS.verbose:
             for ln in container.logs(stream=True):
