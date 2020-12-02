@@ -483,23 +483,21 @@ ARG TRITON_CONTAINER_VERSION
         df += '''
 SHELL ["cmd", "/S", "/C"]
 
-# Download and install Build Tools for Visual Studio 2017.
+# Download and install Build Tools for Visual Studio
 WORKDIR /BuildTools
-ARG CHANNEL_URL=https://aka.ms/vs/15/release/channel
-ARG BUILDTOOLS_URL=https://aka.ms/vs/15/release/vs_buildtools.exe
+ARG CHANNEL_URL=https://aka.ms/vs/16/release/channel
+ARG BUILDTOOLS_URL=https://aka.ms/vs/16/release/vs_buildtools.exe
 ADD ${CHANNEL_URL} VisualStudio.chman
 ADD ${BUILDTOOLS_URL} vs_buildtools.exe
-RUN vs_buildtools.exe --quiet --wait --norestart --nocache   --channelUri VisualStudio.chman     --installChannelUri VisualStudio.chman     --add Microsoft.VisualStudio.Workload.ManagedDesktopBuildTools     --add Microsoft.Net.Component.3.5.DeveloperTools     --add Microsoft.Net.ComponentGroup.4.6.2.DeveloperTools     --add Microsoft.Net.ComponentGroup.TargetingPacks.Common     --add Microsoft.VisualStudio.Component.TestTools.BuildTools     --add Microsoft.VisualStudio.Workload.VCTools     --add Microsoft.VisualStudio.Component.VC.140     --add Microsoft.VisualStudio.Component.VC.ATL     --add Microsoft.VisualStudio.Component.VC.CLI.Support     --add Microsoft.VisualStudio.Component.Windows10SDK.16299.Desktop     --add Microsoft.VisualStudio.ComponentGroup.NativeDesktop.WinXP     --add Microsoft.VisualStudio.Workload.NodeBuildTools     --add Microsoft.VisualStudio.Component.TypeScript.2.8     --installPath /BuildTools
+RUN vs_buildtools.exe --quiet --wait --norestart --nocache --installPath /BuildTools --channelUri VisualStudio.chman --installChannelUri VisualStudio.chman --add Microsoft.VisualStudio.Workload.VCTools;includeRecommended --add Microsoft.Component.MSBuild || IF "%ERRORLEVEL%"=="3010" EXIT 0
 
-#WORKDIR /Git
-#RUN powershell Invoke-WebRequest 'https://github.com/git-for-windows/git/releases/download/v2.29.2.windows.2/Git-2.29.2.2-64-bit.exe' -OutFile 'Git-2.29.2.2-64-bit.exe'
-#RUN Git-2.29.2.2-64-bit.exe /VERYSILENT /NORESTART /NOCANCEL /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS
+# Git and Python3
+RUN powershell.exe -ExecutionPolicy RemoteSigned iex (new-object net.webclient).downloadstring('https://get.scoop.sh'); scoop install python git
 
-#WORKDIR /vcpkg
-#RUN git clone --depth=1 --single-branch -b 2020.11-1 https://github.com/microsoft/vcpkg.git
-#WORKDIR /vcpkg/vcpkg
-#RUN bootstrap-vcpkg.bat
-
+WORKDIR /vcpkg
+RUN git clone --depth=1 --single-branch -b 2020.11-1 https://github.com/microsoft/vcpkg.git
+WORKDIR /vcpkg/vcpkg
+#RUN C:/BuildTools/Common7/Tools/VsDevCmd.bat; bootstrap-vcpkg.bat
 #RUN vcpkg.exe install rapidjson:x64-windows re2:x64-windows boost-interprocess:x64-windows
 '''
     else:
