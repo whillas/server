@@ -482,18 +482,14 @@ ARG TRITON_CONTAINER_VERSION
     if platform.system() == 'Windows':
         df += '''
 SHELL ["cmd", "/S", "/C"]
-WORKDIR /TEMP
-# Install Node.js LTS
-ADD https://nodejs.org/dist/v8.11.3/node-v8.11.3-x64.msi C:\\TEMP\\node-install.msi
-RUN start /wait msiexec.exe /i C:\\TEMP\\node-install.msi /l*vx "%TEMP%\\MSI-node-install.log" /qn ADDLOCAL=ALL
-
-# Download channel for fixed install.
-ARG CHANNEL_URL=https://aka.ms/vs/15/release/channel
-ADD ${CHANNEL_URL} C:\\TEMP\\VisualStudio.chman
 
 # Download and install Build Tools for Visual Studio 2017.
-ADD https://aka.ms/vs/15/release/vs_buildtools.exe C:\\TEMP\\vs_buildtools.exe
-RUN C:\\TEMP\\vs_buildtools.exe --quiet --wait --norestart --nocache   --channelUri C:\\TEMP\\VisualStudio.chman     --installChannelUri C:\\TEMP\\VisualStudio.chman     --add Microsoft.VisualStudio.Workload.ManagedDesktopBuildTools     --add Microsoft.Net.Component.3.5.DeveloperTools     --add Microsoft.Net.ComponentGroup.4.6.2.DeveloperTools     --add Microsoft.Net.ComponentGroup.TargetingPacks.Common     --add Microsoft.VisualStudio.Component.TestTools.BuildTools     --add Microsoft.VisualStudio.Workload.VCTools     --add Microsoft.VisualStudio.Component.VC.140     --add Microsoft.VisualStudio.Component.VC.ATL     --add Microsoft.VisualStudio.Component.VC.CLI.Support     --add Microsoft.VisualStudio.Component.Windows10SDK.16299.Desktop     --add Microsoft.VisualStudio.ComponentGroup.NativeDesktop.WinXP     --add Microsoft.VisualStudio.Workload.NodeBuildTools     --add Microsoft.VisualStudio.Component.TypeScript.2.8     --installPath C:\\BuildTools
+WORKDIR /BuildTools
+ARG CHANNEL_URL=https://aka.ms/vs/15/release/channel
+ARG BUILDTOOLS_URL=https://aka.ms/vs/15/release/vs_buildtools.exe
+ADD ${CHANNEL_URL} VisualStudio.chman
+ADD ${BUILDTOOLS_URL} vs_buildtools.exe
+RUN vs_buildtools.exe --quiet --wait --norestart --nocache   --channelUri VisualStudio.chman     --installChannelUri VisualStudio.chman     --add Microsoft.VisualStudio.Workload.ManagedDesktopBuildTools     --add Microsoft.Net.Component.3.5.DeveloperTools     --add Microsoft.Net.ComponentGroup.4.6.2.DeveloperTools     --add Microsoft.Net.ComponentGroup.TargetingPacks.Common     --add Microsoft.VisualStudio.Component.TestTools.BuildTools     --add Microsoft.VisualStudio.Workload.VCTools     --add Microsoft.VisualStudio.Component.VC.140     --add Microsoft.VisualStudio.Component.VC.ATL     --add Microsoft.VisualStudio.Component.VC.CLI.Support     --add Microsoft.VisualStudio.Component.Windows10SDK.16299.Desktop     --add Microsoft.VisualStudio.ComponentGroup.NativeDesktop.WinXP     --add Microsoft.VisualStudio.Workload.NodeBuildTools     --add Microsoft.VisualStudio.Component.TypeScript.2.8     --installPath /BuildTools
 
 #WORKDIR /Git
 #RUN powershell Invoke-WebRequest 'https://github.com/git-for-windows/git/releases/download/v2.29.2.windows.2/Git-2.29.2.2-64-bit.exe' -OutFile 'Git-2.29.2.2-64-bit.exe'
