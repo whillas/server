@@ -956,8 +956,8 @@ def container_build(backends, images):
 
         if platform.system() == 'Windows':
             volumes={
-                '\\.\pipe\docker_engine': {
-                    'bind': '\\.\pipe\docker_engine',
+                '\\\\.\pipe\docker_engine': {
+                    'bind': '\\\\.\pipe\docker_engine',
                     'mode': 'rw'
                 }
             }
