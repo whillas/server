@@ -484,12 +484,10 @@ ARG TRITON_CONTAINER_VERSION
 SHELL ["cmd", "/S", "/C"]
 
 # Download and install Build Tools for Visual Studio
-WORKDIR /BuildTools
-ARG CHANNEL_URL=https://aka.ms/vs/16/release/channel
-ARG BUILDTOOLS_URL=https://aka.ms/vs/16/release/vs_buildtools.exe
-ADD ${CHANNEL_URL} VisualStudio.chman
-ADD ${BUILDTOOLS_URL} vs_buildtools.exe
-RUN vs_buildtools.exe --quiet --wait --norestart --nocache --installPath /BuildTools --channelUri VisualStudio.chman --installChannelUri VisualStudio.chman --add Microsoft.VisualStudio.Workload.VCTools;includeRecommended --add Microsoft.Component.MSBuild || IF "%ERRORLEVEL%"=="3010" EXIT 0
+RUN mkdir c:\\temp
+ADD https://aka.ms/vs/16/release/vs_buildtools.exe /temp/vs_buildtools.exe
+ADD https://aka.ms/vs/16/release/channel /temp/VisualStudio.chman
+RUN /Temp/vs_buildtools.exe     --quiet --wait --norestart --nocache     --installPath C:\\BuildTools     --channelUri C:\\Temp\\VisualStudio.chman     --installChannelUri C:\\Temp\\VisualStudio.chman     --add Microsoft.VisualStudio.Workload.VCTools;includeRecommended     --add Microsoft.Component.MSBuild  || IF "%ERRORLEVEL%"=="3010" EXIT 0
 
 # Git and Python3
 RUN powershell.exe -ExecutionPolicy RemoteSigned iex (new-object net.webclient).downloadstring('https://get.scoop.sh'); scoop install python git
@@ -497,8 +495,9 @@ RUN powershell.exe -ExecutionPolicy RemoteSigned iex (new-object net.webclient).
 WORKDIR /vcpkg
 RUN git clone --depth=1 --single-branch -b 2020.11-1 https://github.com/microsoft/vcpkg.git
 WORKDIR /vcpkg/vcpkg
-#RUN C:/BuildTools/Common7/Tools/VsDevCmd.bat; bootstrap-vcpkg.bat
-#RUN vcpkg.exe install rapidjson:x64-windows re2:x64-windows boost-interprocess:x64-windows
+RUN bootstrap-vcpkg.bat
+RUN vcpkg.exe update
+RUN vcpkg.exe install rapidjson:x64-windows re2:x64-windows boost-interprocess:x64-windows
 '''
     else:
         df += '''
@@ -824,7 +823,7 @@ def container_build(backends, images):
     if 'base' in images:
         base_image = images['base']
     elif platform.system() == 'Windows':
-        base_image = 'mcr.microsoft.com/windows:1809'
+        base_image = 'mcr.microsoft.com/dotnet/framework/sdk:4.8'
     else:
         base_image = 'nvcr.io/nvidia/tritonserver:{}-py3-min'.format(
             FLAGS.upstream_container_version)
