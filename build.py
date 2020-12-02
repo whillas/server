@@ -490,7 +490,7 @@ ADD https://aka.ms/vs/16/release/channel /temp/VisualStudio.chman
 RUN /Temp/vs_buildtools.exe     --quiet --wait --norestart --nocache     --installPath C:\\BuildTools     --channelUri C:\\Temp\\VisualStudio.chman     --installChannelUri C:\\Temp\\VisualStudio.chman     --add Microsoft.VisualStudio.Workload.VCTools;includeRecommended     --add Microsoft.Component.MSBuild  || IF "%ERRORLEVEL%"=="3010" EXIT 0
 
 # Git and Python3
-RUN powershell.exe -ExecutionPolicy RemoteSigned iex (new-object net.webclient).downloadstring('https://get.scoop.sh'); scoop install python git
+RUN powershell.exe -ExecutionPolicy RemoteSigned iex (new-object net.webclient).downloadstring('https://get.scoop.sh'); scoop install python git docker
 
 WORKDIR /vcpkg
 RUN git clone --depth=1 --single-branch -b 2020.11-1 https://github.com/microsoft/vcpkg.git
