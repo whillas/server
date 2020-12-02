@@ -27,6 +27,7 @@
 
 #include <grpc++/grpc++.h>
 #include "src/core/grpc_service.grpc.pb.h"
+#include "src/servers/inference_service_impl.h"
 #include "src/servers/shared_memory_manager.h"
 #include "src/servers/tracer.h"
 #include "triton/core/tritonserver.h"
@@ -100,6 +101,7 @@ class GRPCServer {
   std::unique_ptr<HandlerBase> model_stream_infer_handler_;
 
   inference::GRPCInferenceService::AsyncService service_;
+  std::unique_ptr<InferenceServiceImpl> infer_service_;
   bool running_;
 };
 

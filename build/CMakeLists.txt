@@ -136,7 +136,7 @@ endif()
 ExternalProject_Add(grpc-repo
   PREFIX grpc-repo
   GIT_REPOSITORY "https://github.com/grpc/grpc.git"
-  GIT_TAG "v1.25.0"
+  GIT_TAG "v1.33.1"
   SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/grpc-repo/src/grpc"
   CONFIGURE_COMMAND ""
   BUILD_COMMAND ""
@@ -357,7 +357,7 @@ set(GCS_CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH}
 ExternalProject_Add(google-cloud-cpp
   PREFIX google-cloud-cpp
   GIT_REPOSITORY "https://github.com/googleapis/google-cloud-cpp.git"
-  GIT_TAG "v0.10.0"
+  GIT_TAG "v1.20.0"
   SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/google-cloud-cpp/src/google-cloud-cpp"
   CMAKE_CACHE_ARGS
     -DGOOGLE_CLOUD_CPP_DEPENDENCY_PROVIDER:STRING=package
@@ -497,7 +497,7 @@ endif()
 
 set(TRITON_DEPENDS protobuf)
 if(${TRITON_ENABLE_GCS})
-  set(TRITON_DEPENDS ${TRITON_DEPENDS} google-cloud-cpp)
+  #set(TRITON_DEPENDS ${TRITON_DEPENDS} google-cloud-cpp)
 endif() # TRITON_ENABLE_GCS
 if(${TRITON_ENABLE_S3})
   set(TRITON_DEPENDS ${TRITON_DEPENDS} aws-sdk-cpp)

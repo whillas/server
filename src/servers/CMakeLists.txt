@@ -38,11 +38,13 @@ if(${TRITON_ENABLE_GRPC})
   list(APPEND
     GRPC_ENDPOINT_SRCS
     grpc_server.cc
+    inference_service_impl.cc
     )
 
   list(APPEND
     GRPC_ENDPOINT_HDRS
     grpc_server.h
+    inference_service_impl.h
     )
 
   add_library(

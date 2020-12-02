@@ -63,10 +63,7 @@
 #endif  // TRITON_ENABLE_TRACING
 
 namespace nvidia { namespace inferenceserver {
-
 namespace {
-
-#if 0
 
 // Unique IDs are only needed when debugging. They only appear in
 // verbose logging.
@@ -1599,9 +1596,9 @@ class ResponseQueue {
 
   ~ResponseQueue()
   {
-    for (auto response : responses_) {
-      delete response;
-    }
+    // for (auto response : responses_) {
+    //  delete response;
+    //}
   }
 
   // Resets the queue
@@ -1623,7 +1620,8 @@ class ResponseQueue {
     std::lock_guard<std::mutex> lock(mtx_);
     alloc_count_ = 1;
     if (responses_.size() < 1) {
-      responses_.push_back(new ResponseType());
+      responses_.push_back(
+          ::google::protobuf::Arena::CreateMessage<ResponseType>(&arena_));
     }
     return responses_[0];
   }
@@ -1634,7 +1632,8 @@ class ResponseQueue {
     std::lock_guard<std::mutex> lock(mtx_);
     alloc_count_++;
     if (responses_.size() < alloc_count_) {
-      responses_.push_back(new ResponseType());
+      responses_.push_back(
+          ::google::protobuf::Arena::CreateMessage<ResponseType>(&arena_));
     }
   }
 
@@ -1712,7 +1711,7 @@ class ResponseQueue {
   }
 
  private:
-  //::google::protobuf::Arena arena_;
+  ::google::protobuf::Arena arena_;
   std::vector<ResponseType*> responses_;
   std::mutex mtx_;
 
@@ -3950,8 +3949,6 @@ ModelStreamInferHandler::StreamInferResponseComplete(
   }
 }
 
-#endif
-
 void
 ReadFile(const std::string& filename, std::string& data)
 {
@@ -4032,35 +4029,33 @@ GRPCServer::Start()
 
   grpc_builder_.AddListeningPort(server_addr_, credentials);
   grpc_builder_.SetMaxMessageSize(MAX_GRPC_MESSAGE_SIZE);
-  // grpc_builder_.RegisterService(&service_);
-  infer_service_.reset(new InferenceServiceImpl(server_, shm_manager_));
-  grpc_builder_.RegisterService(infer_service_.get());
-  // common_cq_ = grpc_builder_.AddCompletionQueue();
-  // model_infer_cq_ = grpc_builder_.AddCompletionQueue();
-  // model_stream_infer_cq_ = grpc_builder_.AddCompletionQueue();
+  grpc_builder_.RegisterService(&service_);
+  common_cq_ = grpc_builder_.AddCompletionQueue();
+  model_infer_cq_ = grpc_builder_.AddCompletionQueue();
+  model_stream_infer_cq_ = grpc_builder_.AddCompletionQueue();
   grpc_server_ = grpc_builder_.BuildAndStart();
 
   // A common Handler for other non-inference requests
-  // CommonHandler* hcommon = new CommonHandler(
-  //    "CommonHandler", server_, shm_manager_, &service_, common_cq_.get());
-  // hcommon->Start();
-  // common_handler_.reset(hcommon);
+  CommonHandler* hcommon = new CommonHandler(
+      "CommonHandler", server_, shm_manager_, &service_, common_cq_.get());
+  hcommon->Start();
+  common_handler_.reset(hcommon);
 
   // Handler for model inference requests.
-  // ModelInferHandler* hmodelinfer = new ModelInferHandler(
-  //   "ModelInferHandler", server_, trace_manager_, shm_manager_, &service_,
-  //    model_infer_cq_.get(),
-  //    infer_allocation_pool_size_ /* max_state_bucket_count */);
-  // hmodelinfer->Start();
-  // model_infer_handler_.reset(hmodelinfer);
+  ModelInferHandler* hmodelinfer = new ModelInferHandler(
+      "ModelInferHandler", server_, trace_manager_, shm_manager_, &service_,
+      model_infer_cq_.get(),
+      infer_allocation_pool_size_ /* max_state_bucket_count */);
+  hmodelinfer->Start();
+  model_infer_handler_.reset(hmodelinfer);
 
   // Handler for streaming inference requests.
-  // ModelStreamInferHandler* hmodelstreaminfer = new ModelStreamInferHandler(
-  //    "ModelStreamInferHandler", server_, trace_manager_, shm_manager_,
-  //    &service_, model_stream_infer_cq_.get(),
-  //    infer_allocation_pool_size_ /* max_state_bucket_count */);
-  // hmodelstreaminfer->Start();
-  // model_stream_infer_handler_.reset(hmodelstreaminfer);
+  ModelStreamInferHandler* hmodelstreaminfer = new ModelStreamInferHandler(
+      "ModelStreamInferHandler", server_, trace_manager_, shm_manager_,
+      &service_, model_stream_infer_cq_.get(),
+      infer_allocation_pool_size_ /* max_state_bucket_count */);
+  hmodelstreaminfer->Start();
+  model_stream_infer_handler_.reset(hmodelstreaminfer);
 
   running_ = true;
   LOG_INFO << "Started GRPCInferenceService at " << server_addr_;
@@ -4078,16 +4073,16 @@ GRPCServer::Stop()
   // Always shutdown the completion queue after the server.
   grpc_server_->Shutdown();
 
-  // common_cq_->Shutdown();
-  // model_infer_cq_->Shutdown();
-  //  model_stream_infer_cq_->Shutdown();
+  common_cq_->Shutdown();
+  model_infer_cq_->Shutdown();
+  model_stream_infer_cq_->Shutdown();
 
   // Must stop all handlers explicitly to wait for all the handler
   // threads to join since they are referencing completion queue, etc.
-  // dynamic_cast<CommonHandler*>(common_handler_.get())->Stop();
-  // dynamic_cast<ModelInferHandler*>(model_infer_handler_.get())->Stop();
-  // dynamic_cast<ModelStreamInferHandler*>(model_stream_infer_handler_.get())
-  //    ->Stop();
+  dynamic_cast<CommonHandler*>(common_handler_.get())->Stop();
+  dynamic_cast<ModelInferHandler*>(model_infer_handler_.get())->Stop();
+  dynamic_cast<ModelStreamInferHandler*>(model_stream_infer_handler_.get())
+      ->Stop();
 
   running_ = false;
   return nullptr;  // success

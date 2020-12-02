@@ -27,6 +27,7 @@
 syntax = "proto3";
 
 package inference;
+option cc_enable_arenas = true;
 
 //@@.. cpp:namespace:: inference
 

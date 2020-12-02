@@ -31,6 +31,7 @@
 #include "src/clients/c++/library/grpc_client.h"
 
 #include <grpcpp/grpcpp.h>
+#include <nvtx3/nvToolsExt.h>
 #include <chrono>
 #include <cstdint>
 #include <fstream>
@@ -870,8 +871,18 @@ InferenceServerGrpcClient::Infer(
     return err;
   }
   sync_request->grpc_response_->Clear();
+  nvtxEventAttributes_t eventAttrib2;
+    eventAttrib2.version = NVTX_VERSION;
+    eventAttrib2.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+    eventAttrib2.colorType = NVTX_COLOR_ARGB;
+    eventAttrib2.color = 0xFF000000;
+    eventAttrib2.messageType = NVTX_MESSAGE_TYPE_ASCII;
+    eventAttrib2.message.ascii = "ClientModelInfer";
+    nvtxRangeId_t id2 = nvtxRangeStartEx(&eventAttrib2);
   sync_request->grpc_status_ = stub_->ModelInfer(
       &context, infer_request_, sync_request->grpc_response_.get());
+  
+  nvtxRangeEnd(id2);
 
   if (!sync_request->grpc_status_.ok()) {
     err = Error(sync_request->grpc_status_.error_message());
