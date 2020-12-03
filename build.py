@@ -936,8 +936,9 @@ def container_build(backends, images):
         # --install-dir is added/overridden to 'install_dir'
         #
         # --container-prebuild-command needs to be quoted correctly
-        runargs = sys.argv[1:]
-        runargs.append('--no-container-build')
+        runargs = ['python3', './build.py',]
+        runargs += sys.argv[1:]
+        runargs += ['--no-container-build',]
         if FLAGS.version is not None:
             runargs += ['--version', FLAGS.version]
         if FLAGS.container_version is not None:
@@ -957,35 +958,27 @@ def container_build(backends, images):
                 runargs[idx] = '--container-prebuild-command="{}"'.format(
                     runargs[idx][len('--container-prebuild-command='):])
 
+        dockerrunargs = [
+            'docker', 'run', '--name', 'tritonserver_builder', '-w',
+            '/workspace'
+        ]
         if platform.system() == 'Windows':
-            volumes={
-                '\\\\.\pipe\docker_engine': {
-                    'bind': '\\\\.\pipe\docker_engine',
-                    'mode': 'rw'
-                }
-            }
+            dockerrunargs += [
+                '-v', '\\\\.\pipe\docker_engine:\\\\.\pipe\docker_engine'
+            ]
         else:
-            volumes={
-                '/var/run/docker.sock': {
-                    'bind': '/var/run/docker.sock',
-                    'mode': 'rw'
-                }
-            }
-
-        log_verbose('run {}'.format(runargs))
-        container = client.containers.run(
+            dockerrunargs += ['-v', '/var/run/docker.sock:/var/run/docker.sock']
+        dockerrunargs += [
             'tritonserver_buildbase',
-            './build.py {}'.format(' '.join(runargs)),
-            detach=True,
-            name='tritonserver_builder',
-            volumes=volumes,
-            working_dir='/workspace')
-        if FLAGS.verbose:
-            for ln in container.logs(stream=True):
-                log_verbose(ln)
-        ret = container.wait()
-        fail_if(ret['StatusCode'] != 0,
-                'tritonserver_builder failed: {}'.format(ret))
+        ]
+        dockerrunargs += runargs
+
+        log_verbose(dockerrunargs)
+        p = subprocess.Popen(dockerrunargs)
+        p.wait()
+        fail_if(p.returncode != 0, 'docker run tritonserver_builder failed')
+
+        container = client.containers.get('tritonserver_builder')
 
         # It is possible to copy the install artifacts from the
         # container at this point (and, for example put them in the
