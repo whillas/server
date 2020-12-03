@@ -172,11 +172,21 @@ def cmake(cwd, args):
 
 def makeinstall(cwd, target='install'):
     log_verbose('make {}'.format(target))
-    verbose_flag = 'VERBOSE=1' if FLAGS.verbose else 'VERBOSE=0'
-    p = subprocess.Popen(
-        ['make', '-j',
-         str(FLAGS.build_parallel), verbose_flag, target],
-        cwd=cwd)
+
+    if platform.system() == 'Windows':
+        verbose_flag = '-v:detailed' if FLAGS.verbose else '-v:normal'
+        p = subprocess.Popen([
+            'msbuild.exe', '-m:{}'.format(str(FLAGS.build_parallel)),
+            verbose_flag, '{}.vcxproj'.format(target)
+        ],
+                             cwd=cwd)
+    else:
+        verbose_flag = 'VERBOSE=1' if FLAGS.verbose else 'VERBOSE=0'
+        p = subprocess.Popen(
+            ['make', '-j',
+             str(FLAGS.build_parallel), verbose_flag, target],
+            cwd=cwd)
+
     p.wait()
     fail_if(p.returncode != 0, 'make {} failed'.format(target))
 
@@ -484,10 +494,10 @@ ARG TRITON_CONTAINER_VERSION
 SHELL ["cmd", "/S", "/C"]
 
 # Download and install Build Tools for Visual Studio
-RUN mkdir c:\\temp
-ADD https://aka.ms/vs/16/release/vs_buildtools.exe /temp/vs_buildtools.exe
-ADD https://aka.ms/vs/16/release/channel /temp/VisualStudio.chman
-RUN /Temp/vs_buildtools.exe     --quiet --wait --norestart --nocache     --installPath C:\\BuildTools     --channelUri C:\\Temp\\VisualStudio.chman     --installChannelUri C:\\Temp\\VisualStudio.chman     --add Microsoft.VisualStudio.Workload.VCTools;includeRecommended     --add Microsoft.Component.MSBuild  || IF "%ERRORLEVEL%"=="3010" EXIT 0
+RUN mkdir c:\\tmp
+ADD https://aka.ms/vs/16/release/vs_buildtools.exe /tmp/vs_buildtools.exe
+ADD https://aka.ms/vs/16/release/channel /tmp/VisualStudio.chman
+RUN /tmp/vs_buildtools.exe --quiet --wait --norestart --nocache --installPath C:\\BuildTools --channelUri C:\\tmp\\VisualStudio.chman --installChannelUri C:\\tmp\\VisualStudio.chman --add Microsoft.VisualStudio.Workload.VCTools;includeRecommended --add Microsoft.Component.MSBuild || IF "%ERRORLEVEL%"=="3010" EXIT 0
 
 # Git and Python3
 RUN powershell.exe -ExecutionPolicy RemoteSigned iex (new-object net.webclient).downloadstring('https://get.scoop.sh'); scoop install python git cmake docker
@@ -646,19 +656,23 @@ RUN cd /opt/tritonserver/backends/onnxruntime && \
     done
 '''
 
-    # Copy in the triton source. We remove existing contents first incase the
-    # FROM container has something there already.
+    # Copy in the triton source. We remove existing contents first
+    # incase the FROM container has something there already. On
+    # windows it is important that the entrypoint initialize
+    # VisualStudio environment otherwise the build will fail.
     if platform.system() == 'Windows':
         df += '''
 WORKDIR /workspace
 RUN rmdir /S/Q * || exit 0
 COPY . .
+ENTRYPOINT C:\BuildTools\Common7\Tools\VsDevCmd.bat &&
 '''
     else:
         df += '''
 WORKDIR /workspace
 RUN rm -fr *
 COPY . .
+ENTRYPOINT []
 '''
 
     if 'onnxruntime' in backends:
@@ -670,7 +684,6 @@ COPY --from=tritonserver_onnx /workspace/build/Release/testdata/custom_op_librar
     /workspace/qa/L0_custom_ops/
 '''
     df += '''
-ENTRYPOINT []
 ENV TRITON_SERVER_VERSION ${TRITON_VERSION}
 ENV NVIDIA_TRITON_SERVER_VERSION ${TRITON_CONTAINER_VERSION}
 '''
@@ -936,9 +949,14 @@ def container_build(backends, images):
         # --install-dir is added/overridden to 'install_dir'
         #
         # --container-prebuild-command needs to be quoted correctly
-        runargs = ['python3', './build.py',]
+        runargs = [
+            'python3',
+            './build.py',
+        ]
         runargs += sys.argv[1:]
-        runargs += ['--no-container-build',]
+        runargs += [
+            '--no-container-build',
+        ]
         if FLAGS.version is not None:
             runargs += ['--version', FLAGS.version]
         if FLAGS.container_version is not None:
