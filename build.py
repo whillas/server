@@ -498,6 +498,9 @@ WORKDIR /vcpkg/vcpkg
 RUN bootstrap-vcpkg.bat
 RUN vcpkg.exe update
 RUN vcpkg.exe install rapidjson:x64-windows re2:x64-windows boost-interprocess:x64-windows
+
+WORKDIR /workspace
+RUN pip3 install --upgrade wheel setuptools docker
 '''
     else:
         df += '''
